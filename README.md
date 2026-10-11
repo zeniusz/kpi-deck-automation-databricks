@@ -114,6 +114,20 @@ dashboard capture need a workspace.</sub>
 
 ![Presentation Update page](docs/screenshots/03_presentation_update.png)
 
+### The showcase deck
+`templates/Analytics_KPIs_showcase_tagged.pptx` is a 25-slide, dark-theme deck with the structure of a real
+monthly KPI pack: a read-me slide on data scope and freshness, community, events, Databricks training and
+guild slides, cross-programme reach, a licence-utilisation appendix and a key-findings slide. It has
+**81 tagged shapes** that match the app's KPI and chart keys (checked in `tests/test_showcase_deck.py`), and a
+refresh test run replaced 69 KPI values and 25 charts. Every name, programme and figure in it is fictional,
+every chart is a synthetic image, and it is built on a plain master with no logos, hyperlinks, embedded
+objects or author metadata.
+
+![Showcase deck: read-me and community](docs/screenshots/20_showcase_deck_readme_community.png)
+![Showcase deck: events and reach](docs/screenshots/21_showcase_deck_events_reach.png)
+![Showcase deck: key findings](docs/screenshots/22_showcase_deck_key_findings.png)
+<sub>Slides exported from the deck. Figures are synthetic and not consistent with each other.</sub>
+
 ### Template tagging (beta)
 Tagging is repeatable instead of clicking through PowerPoint: upload an untagged deck, see every text
 box and picture per slide, adjust a JSON spec (`[visible text, key]` pairs and picture keys), and
@@ -143,7 +157,7 @@ python -m venv .venv
 .venv/Scripts/activate        # Windows; use source .venv/bin/activate elsewhere
 pip install -r requirements-dev.txt
 cp .env.example .env          # optional: only needed to connect to a real workspace
-python -m pytest tests        # 73 tests, no network
+python -m pytest tests        # 75 tests, no network
 streamlit run app.py
 ```
 Python 3.11+ is required (`tomllib`). Without Databricks you can:
@@ -170,7 +184,7 @@ configured workspace. Regenerate the demo assets with `python demo_data/build_de
   own archived copy. Archive failures are recorded (`archive_ok`) and shown rather than hidden.
 * **Config over code.** Routing rules, the organisation profile and the deck layout are data; adding
   a source is a rule plus a test case (`tests/test_demo_uploads.py` covers every demo file).
-* **Tests** (73, offline): routing and write modes, cleaning rules, SQL escaping, template tagging,
+* **Tests** (75, offline): routing and write modes, cleaning rules, SQL escaping, template tagging,
   deck refresh including manual-slide protection and chart box overrides.
 
 ## Limitations
