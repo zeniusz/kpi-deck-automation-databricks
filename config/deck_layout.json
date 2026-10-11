@@ -1,0 +1,15 @@
+{
+  "_comment": "Layout rules for the tagged deck. Slide numbers are 1-based. chart_box_overrides are [left, top, width, height] in inches and win over the placeholder's own bounds.",
+  "manual_slides": [
+    6
+  ],
+  "manual_chart_keys": [],
+  "chart_box_overrides": {
+    "community_geographic_footprint": [
+      0.6,
+      1.9,
+      5.6,
+      3.9
+    ]
+  }
+}

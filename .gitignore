@@ -1,0 +1,28 @@
+# Environments and secrets
+.venv/
+venv/
+.env
+.streamlit/secrets.toml
+.databricks_session.json
+.login_result.json
+*.token
+
+# Runtime state
+.run_manifest.json
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Generated at runtime (keep the folders, not the contents)
+presentations/input/*
+presentations/output/*
+charts/output/*
+sharepoint_upload/*
+excel_input/*
+!**/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,151 @@
+# Organisation profile — the company-specific rules the ingestion engine needs.
+#
+# This file describes a FICTIONAL organisation ("Contoso Group"). Every domain uses the reserved
+# `.example` TLD and every company/person name is invented. To run the app for a real organisation,
+# copy this file somewhere private and point ORG_PROFILE_PATH at it — no code changes are needed.
+#
+# What it drives (see derivation.py / excel_ingestion.py):
+#   * country from a "Company (XX)" bracket, then from the e-mail domain, then default_country
+#   * company from the e-mail domain
+#   * which e-mail domains are aliases of the same person, and which alias wins when de-duplicating
+#   * local-language country names that a report layer normalises to English
+
+[organisation]
+name = "Contoso Group"
+# Used when neither the company bracket nor the e-mail domain identifies a country.
+default_country = "Germany"
+# Shown when an e-mail domain is not in [domains.*].
+unknown_company = "Unknown"
+
+# ISO code used in "Company (XX)" brackets -> country name.
+# NOTE: "NL" is intentionally present but "AM" is not — see the am.contoso.example comment below.
+[iso_countries]
+DE = "Germany"
+AT = "Austria"
+CH = "Switzerland"
+NL = "Netherlands"
+PL = "Poland"
+CZ = "Czech Republic"
+ES = "Spain"
+PT = "Portugal"
+
+# Local-language (German) country names -> the English name used on dashboards. Applied at the
+# report layer only, never in the bronze tables. "Czechia" (not "Czech Republic") is deliberate: the
+# two spellings are different strings, and mixing them splits a dashboard grouping.
+[local_country_names]
+"Österreich" = "Austria"
+"Oesterreich" = "Austria"
+"Deutschland" = "Germany"
+"Schweiz" = "Switzerland"
+"Niederlande" = "Netherlands"
+"Polen" = "Poland"
+"Tschechien" = "Czechia"
+"Tschechische Republik" = "Czechia"
+"Spanien" = "Spain"
+
+# ── E-mail domains ────────────────────────────────────────────────────────────────────────────────
+# country  (required)  country of the domain's entity
+# company  (optional)  display name written into the Company column; omit to leave Company alone
+
+# Headquarters identities. cloud.* is the preferred identity; corp.* and legacy-test.* are old
+# tenants that still appear in exports (see [[alias_groups]]).
+[domains."contoso.example"]
+country = "Germany"
+company = "Contoso Holding"
+[domains."cloud.contoso.example"]
+country = "Germany"
+company = "Contoso Group (DE)"
+[domains."corp.contoso.example"]
+country = "Germany"
+company = "Contoso Holding"
+[domains."legacy-test.contoso.example"]
+country = "Germany"
+company = "Contoso Holding"
+[domains."contractor.contoso.example"]
+country = "Germany"
+company = "Contoso Holding"
+
+# Quirk 1: the asset-management arm uses a "am." sub-domain. "AM" looks like a country code (Armenia)
+# but is a company suffix, so it is resolved by DOMAIN, never by bracket.
+[domains."am.contoso.example"]
+country = "Netherlands"
+company = "Contoso AM"
+# Quirk 2: the reinsurance entity is headquartered in Zurich although its name has no country hint.
+[domains."contoso-re.example"]
+country = "Switzerland"
+company = "Contoso Re"
+
+[domains."northwind-at.example"]
+country = "Austria"
+company = "Northwind Retail AT"
+[domains."northwind-ch.example"]
+country = "Switzerland"
+company = "Northwind Retail CH"
+[domains."litware-at.example"]
+country = "Austria"
+company = "Litware Software"
+[domains."fabrikam-pl.example"]
+country = "Poland"
+company = "Fabrikam Logistics PL"
+[domains."fabrikam-cz.example"]
+country = "Czech Republic"
+company = "Fabrikam Logistics CZ"
+[domains."tailspin-es.example"]
+country = "Spain"
+company = "Tailspin Energy ES"
+[domains."tailspin-pt.example"]
+country = "Portugal"
+company = "Tailspin Energy PT"
+[domains."woodgrove-nl.example"]
+country = "Netherlands"
+company = "Woodgrove Bank NL"
+[domains."woodgrove-de.example"]
+country = "Germany"
+company = "Woodgrove Bank DE"
+
+# External consultants: resolved by the COMPANY NAME containing a keyword (see [[company_contains]]),
+# because their address may be a client's or a personal one. The domain is listed too, for when it is
+# present.
+[domains."proseware.example"]
+country = "Germany"
+company = "Proseware Consulting"
+[domains."lucerne-consulting.example"]
+country = "Austria"
+company = "Lucerne Consulting"
+
+# ── Aliases ───────────────────────────────────────────────────────────────────────────────────────
+# Domains that denote the SAME person. Groups that share a domain are merged transitively
+# (cloud.contoso.example is in two groups on purpose — that overlap is a tested case).
+[[alias_groups]]
+domains = ["cloud.contoso.example", "contoso.example", "corp.contoso.example", "legacy-test.contoso.example"]
+[[alias_groups]]
+domains = ["woodgrove-de.example", "woodgrove-nl.example"]
+[[alias_groups]]
+domains = ["cloud.contoso.example", "northwind-at.example"]
+
+# When the same person appears under several aliases, the lower number wins. Unlisted domains
+# (subsidiaries) rank 9. `lookup_order` is the order used when copying values from a related table.
+[alias_priority]
+"cloud.contoso.example" = 0
+"contoso.example" = 1
+"corp.contoso.example" = 1
+"legacy-test.contoso.example" = 1
+[lookup]
+order = ["cloud.contoso.example", "contoso.example", "corp.contoso.example"]
+
+# Company-name keyword -> country, for external consultants.
+[[company_contains]]
+needle = "proseware"
+country = "Germany"
+[[company_contains]]
+needle = "lucerne"
+country = "Austria"
+
+# Accented letters that arrived as "?" in broken exports. Whole-token replacement only — guessing
+# per character would silently corrupt other names.
+[name_repairs]
+"Sch?fer" = "Schäfer"
+"M?ller" = "Müller"
+"N?meth" = "Németh"
+"Kov?cs" = "Kovács"
+"Wi?niewski" = "Wiśniewski"

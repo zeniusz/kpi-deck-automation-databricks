@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>KPI deck automation diagrams</title>
+<style>
+:root{--bg:#0b0d12;--panel:#151922;--panel2:#1b2130;--border:#262d3b;--text:#e8ecf4;--muted:#95a1b8;--red:#E4002B;--red2:#ef4d68;--ok:#39d98a;--warn:#f5b84b;}
+*{box-sizing:border-box}body{margin:0;background:#05070a;font-family:Segoe UI,system-ui,sans-serif;color:var(--text);padding:24px;}
+.panel{width:1180px;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:28px 30px 24px;margin:0 0 28px;}
+h2{margin:0 0 4px;font-size:24px;letter-spacing:-.01em}h2 span{color:var(--red)}
+.sub{color:var(--muted);font-size:14px;margin:0 0 20px}
+.row{display:flex;gap:12px;align-items:stretch}
+.box{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.45;min-width:0}
+.box.hl{border-color:var(--red);background:#1a1018}.box.ok{border-color:#245b43}
+.box h4{margin:0 0 6px;font-size:14px;display:flex;gap:8px;align-items:center}
+.n{background:var(--red);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none}
+.arrow{align-self:center;color:var(--red2);font-size:22px;flex:none}
+code,.c{font-family:Consolas,monospace;font-size:12px;color:var(--red2);background:var(--panel2);padding:1px 5px;border-radius:4px}
+.fn{overflow-wrap:anywhere;font-family:Consolas,monospace;font-size:11.5px;color:var(--muted);margin-top:6px}
+.muted{color:var(--muted)}.tag{display:inline-block;font-size:11px;font-weight:700;color:var(--red2);border:1px solid #5a1a2a;background:#2a0f18;border-radius:999px;padding:1px 8px;margin-right:4px}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}th{color:var(--muted);font-weight:600;font-size:12px}
+.note{margin-top:14px;font-size:12.5px;color:var(--muted);border-left:3px solid var(--red);padding-left:10px}
+.lane{margin:0 0 12px}.lane>.lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 0;background:#0e1118;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font:12px/1.5 Consolas,monospace;color:#cfd6e4;overflow:hidden}
+.k{color:var(--red2)}.s{color:#8fd3a8}.cm{color:#6b7790}
+.foot{margin-top:16px;font-size:11.5px;color:#6b7790}
+</style></head><body>
+
+<!-- ───────────────────────────── 1. Ingestion ───────────────────────────── -->
+<div class="panel" id="ingestion">
+  <h2>Excel upload → <span>Databricks</span>: what happens to a file</h2>
+  <p class="sub">Everything in the first row runs locally on the uploaded file and is previewed first. Nothing is written until the toggle is on.</p>
+
+  <div class="lane"><div class="lbl">Plan &amp; preview (no Databricks needed)</div>
+  <div class="row">
+    <div class="box"><h4><span class="n">1</span>Route</h4>
+      Filename is matched against an ordered list of regex <code>ROUTES</code>; <b>first match wins</b> → target table + write mode.
+      Raw LMS exports are told apart by id prefix (<code>100200_</code> vs <code>300400_</code>).
+      <div class="fn">excel_ingestion.build_plan()</div></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4><span class="n">2</span>Reporting month</h4>
+      Taken from the filename (<code>2026.07</code>) else from the picker. The <code>YYYYMMDD</code> in an export name is the <i>export date</i>, never the period.
+      Existing periods in the target table are shown before anything is written.
+      <div class="fn">infer_reporting_month() · month_check</div></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4><span class="n">3</span>Clean &amp; derive</h4>
+      Read sheet · drop empty rows · find the email column · derive <code>Country</code> and <code>Company</code> from the email domain / company bracket · de-duplicate (key depends on the table) · tag <code>reporting_month</code>.
+      <div class="fn">load_full_frame() · derivation.py</div></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4><span class="n">4</span>Run-level view</h4>
+      Files load in <b>dependency order</b> (community registrations before the listings that read their Country/Job title). Duplicates across files of the same run are removed.
+      <div class="fn">order_index() · prepare_run_frames()</div></div>
+  </div></div>
+
+  <div class="lane"><div class="lbl">Execute (only with “Write to Databricks” ON)</div>
+  <div class="row">
+    <div class="box hl"><h4><span class="n">5</span>Archive raw file</h4>
+      Raw file uploaded to the UC Volume (<code>/Volumes/…/2026_07/</code>). The app never deletes archived files; the same filename replaces its own earlier copy. Failure is recorded as <code>archive_ok=False</code> and logged; the table write still continues.
+      <div class="fn">w.files.upload()</div></div>
+    <div class="arrow">→</div>
+    <div class="box hl"><h4><span class="n">6</span>Month replace</h4>
+      Once per (table, month) per run: <code>DELETE … WHERE reporting_month = '2026.07'</code>, then insert. Re-running a month therefore replaces it instead of duplicating; other months stay untouched.
+      <div class="fn">written: set[(table, month)]</div></div>
+    <div class="arrow">→</div>
+    <div class="box hl"><h4><span class="n">7</span>Insert</h4>
+      <b>≤ 300 rows:</b> batched <code>INSERT … VALUES</code> with escaped identifiers/literals.<br>
+      <b>&gt; 300 rows:</b> Parquet staged to the Volume, loaded with <code>read_files()</code>, staging file deleted in <code>finally</code>.
+      <div class="fn">quote_ident() · sql_literal() · safe_stem()</div></div>
+    <div class="arrow">→</div>
+    <div class="box ok"><h4><span class="n">8</span>Record &amp; refresh</h4>
+      Row counts written to <code>.run_manifest.json</code> so the deck service can detect new data later. Learnings tables rebuilt; Genie sources / dashboards refreshed; cached chat answers cleared.
+      <div class="fn">run_manifest · refresh_all()</div></div>
+  </div></div>
+  <div class="note">Shown for the synthetic organisation “Contoso”. Files that match no route are <b>not guessed</b>: the plan says NO MATCH and, if the contents resemble a known table shape, offers a ranked choice with a confidence score.</div>
+  <div class="foot">Diagram drawn from excel_ingestion.py, services/1_Load_to_Databricks.py and run_manifest.py. Archive, bulk load and SQL writes need a live workspace and are not covered by the offline tests.</div>
+</div>
+
+<!-- ───────────────────────────── 2. Write modes ───────────────────────────── -->
+<div class="panel" id="modes">
+  <h2>Five write modes, chosen by <span>filename rule</span></h2>
+  <p class="sub">The mode is a property of the table, not of the upload, so the same file always lands the same way.</p>
+  <table>
+    <tr><th>Mode</th><th>What it does</th><th>Used for (demo)</th><th>Row example from the demo run</th></tr>
+    <tr><td><span class="tag">FULL REPLACE</span></td><td>Cumulative export: replace the whole table, de-duplicate by email keeping the newest submission.</td><td><code>analytics_community</code></td><td>41 rows in → 40 out (1 repeat submission dropped)</td></tr>
+    <tr><td><span class="tag">APPEND</span></td><td>Monthly snapshot appended and tagged with <code>reporting_month</code>; the same month is replaced, other months kept.</td><td><code>analytics_teams_listing</code>, <code>lakehouse_guild</code>, revenue</td><td>63 rows → 63; Country derived for all 63, Company for 60</td></tr>
+    <tr><td><span class="tag">NEW TABLE PERIOD</span></td><td>One table per period (<code>…_2026_07</code>); dashboards UNION them by name, so the refresh step registers the new table.</td><td>Atlas / Beacon learning exports</td><td>20 learners: 12 passed, 8 in progress — all stored, dashboards filter on Status</td></tr>
+    <tr><td><span class="tag">NEW TABLE EVENT</span></td><td>One table per event, then appended to an all-events table; Guild enrichment is re-run.</td><td><code>analytics_event_number_5</code></td><td>32 rows → 30 (1 short visit &lt; 1 min, 1 repeat attendee)</td></tr>
+    <tr><td><span class="tag">ARCHIVE ONLY</span></td><td>Derived report: archived to the Volume, no table.</td><td>Unregistered-members report</td><td>—</td></tr>
+  </table>
+  <div class="note">Implemented as an enum plus an ordered rule list, so adding a new data source is a config change plus a test case, not new control flow (see tests/test_demo_uploads.py).</div>
+</div>
+
+<!-- ───────────────────────────── 3. Deck refresh ───────────────────────────── -->
+<div class="panel" id="deck">
+  <h2>Refreshing the <span>PowerPoint</span> from Databricks</h2>
+  <p class="sub">The deck is a template. Only shapes whose name starts with <code>kpi:</code> or <code>chart:</code> are ever touched.</p>
+  <div class="row">
+    <div class="box"><h4><span class="n">1</span>Query</h4>
+      Scalar KPIs and chart data come from SQL defined once in <code>kpis.py</code> (<code>SCALARS</code>, <code>CHARTS</code>) against the gold/bronze schemas.
+      <div class="fn">run_scalar_queries() · run_chart_queries()</div></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4><span class="n">2</span>Capture visuals</h4>
+      Headless browser (Playwright) opens each Lakeview dashboard once, filtered to the newest month, and screenshots the tiles listed in <code>DASHBOARD_TILES</code>.
+      A tile that can't be found is a <b>warning, not a failure</b>.
+      <div class="fn">dashboard_capture.py</div></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4><span class="n">3</span>Fallback render</h4>
+      If a tile is missing, the chart is drawn locally with matplotlib from the same query result, so the deck is always complete.
+      <div class="fn">chart_renderer.render_chart()</div></div>
+    <div class="arrow">→</div>
+    <div class="box hl"><h4><span class="n">4</span>Refresh template</h4>
+      <code>kpi:*</code> text boxes get formatted numbers (<code>auto / compact / percent / text</code>); <code>chart:*</code> pictures are replaced in place, fitted to the original box (or a configured override). Slides marked <b>manual</b> are skipped. Month labels roll forward together (<code>2026.06→2026.07</code>, <code>June 2026→July 2026</code>).
+      <div class="fn">pptx_refresher.refresh_powerpoint()</div></div>
+    <div class="arrow">→</div>
+    <div class="box ok"><h4><span class="n">5</span>Summarise</h4>
+      Newest month is compared with the previous one straight from Databricks and written up as a plain-language “what changed” summary (KPI movement, growth, what was loaded), downloadable as Word or text.
+      <div class="fn">change_summary.py</div></div>
+  </div>
+  <div class="lane" style="margin-top:18px"><div class="lbl">Template tagging (one-off per template)</div>
+  <div class="row">
+    <div class="box"><b>Untagged deck</b><br><span class="muted">TextBox 3 → “100”<br>Picture 8</span></div><div class="arrow">+</div>
+    <div class="box"><b>Spec (JSON)</b><pre><span class="k">"kpi_tags"</span>: {"2": [[<span class="s">"100"</span>, <span class="s">"academy_total_learners"</span>]]},
+<span class="k">"chart_tags"</span>: {"2": [<span class="s">"academy_learners_by_country"</span>]}</pre></div><div class="arrow">→</div>
+    <div class="box ok"><b>Tagged deck</b><br><span class="muted">TextBox 3 → <code>kpi:academy_total_learners</code><br>Picture 8 → <code>chart:academy_learners_by_country</code></span><div class="fn">14 KPI boxes + 8 charts in the demo deck</div></div>
+  </div></div>
+  <div class="note">Pictures keep their tag after replacement, so the same refreshed deck can be refreshed again next month. Spec entries that don't match the deck are reported, never silently ignored.</div>
+  <div class="foot">Diagram drawn from kpis.py, pptx_refresher.py, template_tagger.py, dashboard_capture.py. Dashboard capture needs a signed-in browser session and was not exercised against a live workspace.</div>
+</div>
+
+<!-- ───────────────────────────── 4. Chat ───────────────────────────── -->
+<div class="panel" id="chat">
+  <h2>“Ask the Data”: how a question is <span>answered</span></h2>
+  <p class="sub">No separate LLM is bolted on. Data questions go to a Databricks Genie space that sits on the same tables; questions about the app are answered locally.</p>
+  <div class="row">
+    <div class="box"><h4><span class="n">1</span>Question</h4>
+      Typed in the chat page or the floating “Ask AI” widget available on every page.</div>
+    <div class="arrow">→</div>
+    <div class="box"><h4><span class="n">2</span>About the app?</h4>
+      Typo-corrected tokens are scored against <code>APP_KNOWLEDGE</code> topics (strong / weak words). A <b>data-shaped question vetoes</b> the local answer, so “help me count the learnings” still goes to Genie.
+      <div class="fn">answer_about_app()</div></div>
+    <div class="arrow">→</div>
+    <div class="box ok"><h4>Local answer</h4>Instant, offline, cannot invent behaviour the app doesn't have (e.g. “Archived files are never deleted”, “What tables are there?”).</div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <div class="box"><h4><span class="n">3</span>Cache</h4>First questions only (a follow-up depends on history). Cleared after every load so figures never lag the data.
+      <div class="fn">_cache_key() · clear_cache()</div></div>
+    <div class="arrow">→</div>
+    <div class="box hl"><h4><span class="n">4</span>Genie</h4>
+      <code>start_conversation_and_wait</code> (new) or <code>create_message_and_wait</code> (follow-up, keeps context). 240 s timeout. <b>One automatic retry</b>: Genie sometimes fails a question it answers on the second attempt.
+      <div class="fn">databricks-sdk · w.genie</div></div>
+    <div class="arrow">→</div>
+    <div class="box hl"><h4><span class="n">5</span>Genie runs SQL</h4>
+      Over the bronze/gold tables, governed by Unity Catalog permissions. Result rows are fetched (first 200) so the answer shows numbers, not just prose.</div>
+    <div class="arrow">→</div>
+    <div class="box ok"><h4><span class="n">6</span>Answer</h4>
+      Text + table + an expander <b>“SQL Genie ran”</b> so any figure can be verified. Auth, timeout, permission and “space not found” errors become actionable messages.
+      <div class="fn">Answer(text, sql, rows, error)</div></div>
+  </div>
+  <pre style="margin-top:16px"><span class="cm">-- example of what the “SQL Genie ran” expander shows</span>
+<span class="k">SELECT</span> Country, <span class="k">COUNT</span>(*) <span class="k">AS</span> members
+<span class="k">FROM</span> demo_catalog.bronze.analytics_teams_listing
+<span class="k">WHERE</span> reporting_month = <span class="s">'2026.07'</span> <span class="k">GROUP BY</span> Country <span class="k">ORDER BY</span> members <span class="k">DESC</span></pre>
+  <div class="note">The SQL above is illustrative. Live Genie answers could not be captured without a workspace; the local-answer path in the screenshots is real.</div>
+  <div class="foot">Diagram drawn from genie_chat.py and services/5_Ask_the_Data.py.</div>
+</div>
+</body></html>

@@ -1,0 +1,90 @@
+{
+  "chart_tags": {
+    "2": [
+      "academy_learners_by_country",
+      "academy_learners_by_language"
+    ],
+    "3": [
+      "db_training_participation_country",
+      "db_guild_participation_country"
+    ],
+    "4": [
+      "community_top_entities",
+      "community_geographic_footprint"
+    ],
+    "5": [
+      "events_participants_per_event",
+      "events_participation_country"
+    ]
+  },
+  "kpi_tags": {
+    "1": [
+      [
+        "June 2026 Data",
+        "report_month_label"
+      ]
+    ],
+    "2": [
+      [
+        "100",
+        "academy_total_learners"
+      ],
+      [
+        "5",
+        "academy_countries"
+      ],
+      [
+        "9",
+        "academy_companies"
+      ]
+    ],
+    "3": [
+      [
+        "110",
+        "db_participants"
+      ],
+      [
+        "120",
+        "db_guild_members"
+      ],
+      [
+        "0.30%",
+        "db_training_coverage"
+      ]
+    ],
+    "4": [
+      [
+        "130",
+        "community_total_registrations"
+      ],
+      [
+        "140",
+        "community_teams_members"
+      ],
+      [
+        "6",
+        "community_countries_represented"
+      ]
+    ],
+    "5": [
+      [
+        "2",
+        "events_count"
+      ],
+      [
+        "150",
+        "events_total_participants"
+      ],
+      [
+        "160",
+        "events_unique_participants"
+      ]
+    ],
+    "6": [
+      [
+        "Edited by hand",
+        "group_employees"
+      ]
+    ]
+  }
+}
