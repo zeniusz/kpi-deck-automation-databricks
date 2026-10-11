@@ -11,11 +11,12 @@ Python 3.11+ · Streamlit · Databricks SQL / SDK · pandas · python-pptx · Pl
 > dashboard capture) needs your own Databricks configuration and was **not exercised** in this
 > edition. Each screenshot and diagram below says which of the two it is.
 
-## Background
-I work in an analytics department where we build KPIs and dashboards on Databricks for a set of internal
-programmes: a community, trainings on two learning platforms, events, a guild and a revenue view. Management
-sees the results in a monthly KPI deck, so every month ends with the same job: get the latest data into
-Databricks, then turn it into slides.
+## Background and my role
+I am a contributor in a Data & Analytics team that builds KPIs and dashboards on Databricks for a set of
+internal programmes: a community, trainings on two learning platforms, events, a guild and a revenue view.
+Management sees the results in a monthly KPI deck. **The idea for this tool was mine**: I noticed the same
+manual steps repeating every month, proposed automating them, and designed and built it end to end, from the
+upload rules to the deck refresh. This repository is the portfolio edition of that work.
 
 ## The problem
 The data does not arrive in one place or one shape. The Excel files come from different sources and
@@ -101,16 +102,49 @@ record the run, refresh dependent tables. The diagram shows each step and the fu
 
 ![Write modes](docs/screenshots/11_diagram_write_modes.png)
 
+### What a load changes (this demo run)
+Dry run of the seven synthetic files, exactly as the app shows it before writing:
+
+| | Before the load | After the load |
+|---|---|---|
+| Files on disk | 7 Excel files from different sources | 7 raw files archived to their Volume folders |
+| Tables touched | none | 7 bronze tables, each tagged `reporting_month = 2026.07` |
+| Rows | 7 files, 251 raw rows | **248 rows written** (3 removed: 1 repeat registration, 1 short event visit, 1 repeat attendee) |
+| Month safety | July not in the tables yet | July loaded once; re-running July replaces only July |
+| Genie / dashboards | show up to June | refreshed after a real load, so they show July (needs a workspace) |
+
 ## Refreshing the deck
-The PowerPoint is a *template*. Only shapes named `kpi:<key>` (text) or `chart:<key>` (picture) are
-touched; every other shape, and every slide marked manual, is left exactly as designed. KPI values
-and chart data come from SQL defined once in `kpis.py`; dashboard tiles are screenshotted headlessly
-and, if a tile can't be found, the chart is rendered locally from the same data so the deck is never
-incomplete. Month labels roll forward together (`2026.06 → 2026.07`, `June 2026 → July 2026`).
+**Method.** The PowerPoint is a *template*, prepared once. Only shapes named `kpi:<key>` (text) or
+`chart:<key>` (picture) are ever touched; every other shape, and every slide marked manual, stays exactly as
+designed. A refresh then does five things: query the KPI values (SQL defined once in `kpis.py`), capture the
+dashboard widgets as images (headless browser; if a tile can't be found the chart is drawn locally from the same
+data so the deck is never incomplete), replace the tagged text and pictures, roll the month labels forward
+together, and write a "what changed" summary.
 
 ![Deck refresh and tagging](docs/screenshots/12_diagram_deck_refresh_and_tagging.png)
-<sub>Diagram drawn from the code. The refresher and tagger are covered by offline tests; query and
-dashboard capture need a workspace.</sub>
+<sub>Diagram drawn from the code. The refresher and tagger are covered by offline tests; query and dashboard
+capture need a workspace.</sub>
+
+**What changes after a refresh.** The same slide, before and after a test refresh with July values. The four
+KPI numbers and the chart are replaced; the title, the descriptive text and the layout are not, which is the
+point of tagging.
+
+![Before and after: events slide](docs/screenshots/30_deck_before_after_events.png)
+
+| Tagged shape | Before | After |
+|---|---|---|
+| `kpi:events_count` | 4 | 5 |
+| `kpi:events_total_participants` | 1.45K | 1.78K |
+| `kpi:events_unique_participants` | 722 | 861 |
+| `kpi:events_speakers` | 11 | 14 |
+| `chart:events_participants_per_event` | June chart | July chart, fitted to the same card |
+| Untagged text (title, subtitle, topics) | unchanged | unchanged, by design |
+
+Month labels move together: `2026.06 → 2026.07` in the source notes and `June 2026 Data → July 2026 Data` on
+the cover.
+
+![Before and after: month labels](docs/screenshots/31_deck_before_after_labels.png)
+<sub>Test refresh with synthetic values on the showcase deck.</sub>
 
 ![Presentation Update page](docs/screenshots/03_presentation_update.png)
 
